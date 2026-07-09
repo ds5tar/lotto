@@ -1,4 +1,4 @@
-<!-- 로또 번호 생성기: 입력 번호 비율 반영 + 나머지 랜덤으로 10세트 출력하는 단일 페이지 -->
+<!-- 로또 번호 생성기: 입력 번호 비율 반영 + 나머지 랜덤으로 10세트 출력, 과거 100회차 당첨 조합 제외 -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -29,6 +29,7 @@
   .gen:hover { background:#4478f0; }
   .clr { background:transparent; color:var(--muted); border:1px solid var(--line); }
   .err { color:#ff8a8a; font-size:13px; min-height:18px; margin-top:6px; }
+  .hist { color:var(--muted); font-size:13px; margin:4px 0 16px; }
   .sets { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:10px; }
   .set { display:flex; align-items:center; gap:8px; background:#12152e; border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
   .set .idx { width:26px; color:var(--muted); font-size:13px; }
@@ -39,7 +40,7 @@
 </head>
 <body>
   <h1>로또 번호 생성기</h1>
-  <p class="sub">입력한 번호를 지정 비율만큼 반영하고, 나머지는 1~45 중 입력 번호를 제외한 랜덤 수로 채워 10세트를 만듭니다.</p>
+  <p class="sub">입력한 번호를 지정 비율만큼 반영하고, 나머지는 1~45 중 입력 번호를 제외한 랜덤 수로 채워 10세트를 만듭니다. 과거 100회차에 이미 나온 6개 조합은 제외합니다.</p>
 
   <div class="card">
     <h2>1. 번호 입력 (최대 5줄, 각 줄 6개 · 1~45)</h2>
@@ -61,6 +62,7 @@
     <button class="gen" id="genBtn">10세트 생성</button>
     <button class="clr" id="clrBtn">입력 초기화</button>
   </div>
+  <p class="hist" id="histStatus">과거 100회차 당첨 조합 불러오는 중…</p>
 
   <div class="card" id="resultCard" style="display:none;">
     <h2>생성 결과</h2>
@@ -69,7 +71,7 @@
   </div>
 
 <script>
-// 로또 생성 로직: 입력 풀 구성, 비율만큼 입력에서 뽑고 나머지는 제외 랜덤으로 채움
+// 로또 생성 로직: 입력 풀 구성, 비율만큼 입력에서 뽑고 나머지는 제외 랜덤으로 채움. 과거 100회차 조합은 제외
 const ROWS = 5, PICKS = 6, MIN = 1, MAX = 45;
 
 // 입력 행 6칸 x 5줄 생성
@@ -144,16 +146,26 @@ function sample(arr, n) {
   return out;
 }
 
-// 한 세트 생성: 입력에서 k개 + 제외 랜덤에서 (6-k)개
+// 과거 당첨 조합 저장소 (정렬된 6개 번호를 "1,2,3,4,5,6" 형태 키로 보관)
+const pastKeys = new Set();
+function keyOf(nums) { return nums.slice().sort((a, b) => a - b).join(','); }
+
+// 한 세트 생성: 입력에서 k개 + 제외 랜덤에서 (6-k)개. 과거 조합이면 다시 뽑음
 function makeSet(pool, k) {
-  const fromInput = sample(pool, k);
-  const excluded = new Set(pool);
-  const candidates = [];
-  for (let n = MIN; n <= MAX; n++) if (!excluded.has(n)) candidates.push(n);
-  const fromRandom = sample(candidates, PICKS - fromInput.length);
-  const inputMark = new Set(fromInput);
-  const all = [...fromInput, ...fromRandom].sort((a, b) => a - b);
-  return all.map(n => ({ n, fromInput: inputMark.has(n) }));
+  let all = null;
+  for (let attempt = 0; attempt < 300; attempt++) {
+    const fromInput = sample(pool, k);
+    const excluded = new Set(pool);
+    const candidates = [];
+    for (let n = MIN; n <= MAX; n++) if (!excluded.has(n)) candidates.push(n);
+    const fromRandom = sample(candidates, PICKS - fromInput.length);
+    const inputMark = new Set(fromInput);
+    all = [...fromInput, ...fromRandom].sort((a, b) => a - b);
+    if (!pastKeys.has(all.join(','))) {
+      return all.map(n => ({ n, fromInput: inputMark.has(n) }));
+    }
+  }
+  return all.map(n => ({ n, fromInput: false }));
 }
 
 // 번호 구간별 색 (실제 로또 공 색 관례)
@@ -193,7 +205,60 @@ document.getElementById('clrBtn').addEventListener('click', () => {
   document.getElementById('inputErr').textContent = '';
 });
 
+// ── 과거 100회차 당첨번호 실시간 조회 ──
+// 공개 미러(smok95.github.io/lotto, CORS 허용)에서 회차별 당첨번호 JSON을 가져옴
+function drawUrl(n) { return 'https://smok95.github.io/lotto/results/' + n + '.json'; }
+async function fetchNumbers(n) {
+  const r = await fetch(drawUrl(n), { cache: 'no-store' });
+  if (!r.ok) return null;
+  const j = await r.json();
+  return (j && Array.isArray(j.numbers) && j.numbers.length === 6) ? j.numbers : null;
+}
+// 1회차 추첨일(2002-12-07) 기준 오늘까지의 대략 회차
+function estimateLatest() {
+  const first = Date.UTC(2002, 11, 7);
+  return Math.floor((Date.now() - first) / (7 * 24 * 3600 * 1000)) + 1;
+}
+// 추정값 주변을 양방향 탐색해 실제 최신 회차를 찾음(미러 갱신 지연/기준일 오차 보정)
+async function findLatest(start) {
+  let cur = null;
+  try { cur = await fetchNumbers(start); } catch (e) { return null; }
+  if (cur) {
+    let n = start;
+    for (let up = 0; up < 60; up++) {
+      let nx = null; try { nx = await fetchNumbers(n + 1); } catch (e) {}
+      if (nx) n++; else break;
+    }
+    return n;
+  }
+  let n = start;
+  for (let down = 0; down < 80; down++) {
+    n--; if (n < 1) return null;
+    let d = null; try { d = await fetchNumbers(n); } catch (e) {}
+    if (d) return n;
+  }
+  return null;
+}
+async function loadHistory() {
+  const status = document.getElementById('histStatus');
+  let latest = null;
+  try { latest = await findLatest(estimateLatest()); } catch (e) { latest = null; }
+  if (!latest) { status.textContent = '과거 회차 불러오기 실패 — 중복 제외 없이 생성합니다.'; status.style.color = '#ff8a8a'; return; }
+  const nums = [];
+  for (let n = latest; n > latest - 100 && n >= 1; n--) nums.push(n);
+  for (let i = 0; i < nums.length; i += 10) {
+    const chunk = nums.slice(i, i + 10);
+    const res = await Promise.all(chunk.map(n => fetchNumbers(n).catch(() => null)));
+    res.forEach(c => { if (c) pastKeys.add(keyOf(c)); });
+    status.textContent = `과거 100회차 당첨 조합 불러오는 중… (${Math.min(i + 10, nums.length)}/${nums.length})`;
+  }
+  const from = latest - nums.length + 1;
+  status.textContent = `과거 ${nums.length}회차(${from}~${latest}회) 반영됨 · 이미 나온 조합 ${pastKeys.size}건 제외`;
+  status.style.color = '#9aa0c7';
+}
+
 refreshPreview();
+loadHistory();
 </script>
 </body>
 </html>
