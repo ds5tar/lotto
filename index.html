@@ -69,7 +69,7 @@
   </div>
 
 <script>
-// 로또 생성 로직: 입력 풀 구성 → 비율만큼 입력에서 뽑고 나머지는 제외 랜덤으로 채움
+// 로또 생성 로직: 입력 풀 구성, 비율만큼 입력에서 뽑고 나머지는 제외 랜덤으로 채움
 const ROWS = 5, PICKS = 6, MIN = 1, MAX = 45;
 
 // 입력 행 6칸 x 5줄 생성
@@ -91,7 +91,7 @@ const percentEl = document.getElementById('percent');
 const restPctEl = document.getElementById('restPct');
 const pickCountEl = document.getElementById('pickCount');
 
-// 비율 → 한 세트당 입력 반영 개수(반올림) 미리보기
+// 비율에서 한 세트당 입력 반영 개수(반올림) 미리보기
 function pickFromInputCount() {
   let p = Number(percentEl.value);
   if (isNaN(p)) p = 0;
@@ -117,12 +117,12 @@ function readInput() {
   for (const r of Object.keys(rows)) {
     const vals = rows[r];
     const filled = vals.filter(v => v !== '');
-    if (filled.length === 0) continue; // 빈 줄은 건너뜀
+    if (filled.length === 0) continue;
     if (filled.length !== PICKS) { errEl.textContent = `${Number(r) + 1}번째 줄은 6칸을 모두 채우거나 모두 비워주세요.`; return null; }
     const nums = filled.map(Number);
     if (nums.some(n => !Number.isInteger(n) || n < MIN || n > MAX)) { errEl.textContent = `${Number(r) + 1}번째 줄에 1~45 범위를 벗어난 값이 있습니다.`; return null; }
-    if (new Set(nums).size !== PICKS) { errEl.textContent = `${Number(r) + 1}번째 줄에 같은 번호가 중복됩니다. (한 줄 안에서는 6개가 서로 달라야 합니다)`; return null; }
-    nums.forEach(n => pool.add(n)); // 줄 간 중복은 제거되어 동일 확률
+    if (new Set(nums).size !== PICKS) { errEl.textContent = `${Number(r) + 1}번째 줄에 같은 번호가 중복됩니다.`; return null; }
+    nums.forEach(n => pool.add(n));
   }
   return [...pool];
 }
@@ -169,7 +169,6 @@ document.getElementById('genBtn').addEventListener('click', () => {
   const pool = readInput();
   if (pool === null) return;
   const k = Math.min(pickFromInputCount(), pool.length, PICKS);
-
   const setsEl = document.getElementById('sets');
   setsEl.innerHTML = '';
   for (let i = 0; i < 10; i++) {
@@ -178,4 +177,23 @@ document.getElementById('genBtn').addEventListener('click', () => {
     div.className = 'set';
     div.innerHTML = `<span class="idx">${i + 1}</span>`;
     set.forEach(b => {
-      const ball = do
+      const ball = document.createElement('span');
+      ball.className = 'ball' + (b.fromInput ? ' from-input' : '');
+      ball.style.background = b.fromInput ? '#e8113c' : ballColor(b.n);
+      ball.textContent = b.n;
+      div.appendChild(ball);
+    });
+    setsEl.appendChild(div);
+  }
+  document.getElementById('resultCard').style.display = 'block';
+});
+
+document.getElementById('clrBtn').addEventListener('click', () => {
+  document.querySelectorAll('#inputs input').forEach(i => i.value = '');
+  document.getElementById('inputErr').textContent = '';
+});
+
+refreshPreview();
+</script>
+</body>
+</html>
