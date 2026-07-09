@@ -9,14 +9,18 @@
   :root { --bg:#0f1226; --card:#1b1f3b; --line:#2c3160; --txt:#e8eaf6; --muted:#9aa0c7; --accent:#5b8cff; }
   * { box-sizing: border-box; }
   body { margin:0; font-family:"Malgun Gothic","맑은 고딕",system-ui,sans-serif; background:var(--bg); color:var(--txt); padding:24px; }
-  h1 { font-size:22px; margin:0 0 4px; }
-  .sub { color:var(--muted); font-size:13px; margin-bottom:20px; }
+  h1 { font-size:clamp(20px, 2.4vw, 32px); margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:clamp(13px, 1vw, 16px); margin-bottom:20px; }
   .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:18px; }
-  .card h2 { font-size:15px; margin:0 0 12px; color:var(--accent); }
+  .card h2 { font-size:clamp(15px, 1.3vw, 20px); margin:0 0 12px; color:var(--accent); }
   .row { display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
   .row .label { width:64px; color:var(--muted); font-size:13px; }
   input[type=number] { width:56px; padding:7px; text-align:center; border:1px solid var(--line); border-radius:8px; background:#12152e; color:var(--txt); font-size:14px; }
   input[type=number]::-webkit-inner-spin-button { opacity:.4; }
+  /* 입력 칸을 카드 폭에 비례해 균등하게 채움 */
+  #inputs .row { display:grid; grid-template-columns:70px repeat(6, 1fr); gap:10px; margin-bottom:10px; }
+  #inputs .row .label { width:auto; }
+  #inputs input[type=number] { width:100%; padding:clamp(8px, 1vw, 15px) 4px; font-size:clamp(15px, 1.4vw, 22px); }
   .ratio { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
   .ratio input { width:70px; }
   .ratio .note { color:var(--muted); font-size:13px; }
@@ -174,15 +178,4 @@ document.getElementById('genBtn').addEventListener('click', () => {
     div.className = 'set';
     div.innerHTML = `<span class="idx">${i + 1}</span>`;
     set.forEach(b => {
-      const ball = document.createElement('span');
-      ball.className = 'ball' + (b.fromInput ? ' from-input' : '');
-      ball.style.background = b.fromInput ? '#e8113c' : ballColor(b.n);
-      ball.textContent = b.n;
-      div.appendChild(ball);
-    });
-    setsEl.appendChild(div);
-  }
-  document.getElementById('resultCard').style.display = 'block';
-});
-
-document.getElementById('clrBtn').addEventLi
+      const ball = do
