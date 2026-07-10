@@ -40,7 +40,7 @@
 </head>
 <body>
   <h1>로또 번호 생성기</h1>
-  <p class="sub">입력한 번호를 지정 비율만큼 반영하고, 나머지는 1~45 중 입력 번호를 제외한 랜덤 수로 채워 10세트를 만듭니다. 과거 1000회차에 이미 나온 6개 조합은 제외합니다.</p>
+  <p class="sub">입력한 번호를 지정 비율을 최대치로 하여 랜덤 반영하고, 나머지는 1~45 중 입력 번호를 제외한 랜덤 수로 채워 10세트를 만듭니다. 과거 1000회차에 이미 나온 6개 조합은 제외합니다.</p>
 
   <div class="card">
     <h2>1. 번호 입력 (최대 5줄, 각 줄 6개 · 1~45)</h2>
@@ -54,7 +54,7 @@
       <span class="label">입력 반영</span>
       <input type="number" id="percent" min="0" max="100" value="20">
       <span class="note">% (나머지 <b id="restPct">80</b>% 는 랜덤)</span>
-      <span class="note">→ 한 세트당 입력에서 <b id="pickCount">1</b>개 반영</span>
+      <span class="note">→ 한 세트당 입력에서 최대 <b id="pickCount">1</b>개 랜덤 반영</span>
     </div>
   </div>
 
@@ -71,7 +71,7 @@
   </div>
 
 <script>
-// 로또 생성 로직: 입력 풀 구성, 비율만큼 입력에서 뽑고 나머지는 제외 랜덤으로 채움. 과거 1000회차 조합은 제외
+// 로또 생성 로직: 입력 풀 구성, 비율을 최대치로 0~최대개 랜덤 반영하고 나머지는 제외 랜덤으로 채움. 과거 1000회차 조합은 제외
 const ROWS = 5, PICKS = 6, MIN = 1, MAX = 45;
 
 // 입력 행 6칸 x 5줄 생성
@@ -105,7 +105,10 @@ function refreshPreview() {
   restPctEl.textContent = 100 - p;
   pickCountEl.textContent = pickFromInputCount();
 }
-percentEl.addEventListener('input', refreshPreview);
+// 반영 비율을 기기에 저장/복원(다음 실행 때 마지막 값 표시)
+const SAVE_KEY = 'lotto_percent';
+try { const saved = localStorage.getItem(SAVE_KEY); if (saved !== null && saved !== '') percentEl.value = saved; } catch (e) {}
+percentEl.addEventListener('input', () => { try { localStorage.setItem(SAVE_KEY, percentEl.value); } catch (e) {} refreshPreview(); });
 
 // 입력값 읽기 + 검증. 각 줄은 비었거나(무시) 6개 모두 유효(1~45, 줄 내 중복 없음)
 function readInput() {
@@ -180,11 +183,11 @@ function ballColor(n) {
 document.getElementById('genBtn').addEventListener('click', () => {
   const pool = readInput();
   if (pool === null) return;
-  const k = Math.min(pickFromInputCount(), pool.length, PICKS);
+  const maxK = Math.min(pickFromInputCount(), pool.length, PICKS);
   const setsEl = document.getElementById('sets');
   setsEl.innerHTML = '';
   for (let i = 0; i < 10; i++) {
-    const set = makeSet(pool, k);
+    const set = makeSet(pool, randInt(maxK + 1));
     const div = document.createElement('div');
     div.className = 'set';
     div.innerHTML = `<span class="idx">${i + 1}</span>`;
