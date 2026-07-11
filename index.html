@@ -40,7 +40,7 @@
 </head>
 <body>
   <h1>로또 번호 생성기</h1>
-  <p class="sub">입력한 번호를 지정 비율을 최대치로 하여 랜덤 반영하고, 나머지는 1~45 중 입력 번호를 제외한 랜덤 수로 채워 10세트를 만듭니다. 과거 1000회차에 이미 나온 6개 조합은 제외합니다.</p>
+  <p class="sub">입력한 번호를 지정 비율을 최대치로 하여 랜덤 반영하고, 나머지는 1~45 중 입력 번호를 제외한 랜덤 수로 채워 10세트를 만듭니다. 과거 1000회차에 이미 나온 6개 조합은 제외하고, 각 세트의 6개 번호 합은 40 초과 220 미만으로 맞춥니다.</p>
 
   <div class="card">
     <h2>1. 번호 입력 (최대 5줄, 각 줄 6개 · 1~45)</h2>
@@ -71,7 +71,7 @@
   </div>
 
 <script>
-// 로또 생성 로직: 입력 풀 구성, 비율을 최대치로 0~최대개 랜덤 반영하고 나머지는 제외 랜덤으로 채움. 과거 1000회차 조합은 제외
+// 로또 생성 로직: 입력 풀 구성, 비율을 최대치로 0~최대개 랜덤 반영하고 나머지는 제외 랜덤으로 채움. 과거 1000회차 조합 제외, 각 세트 합은 40 초과 220 미만
 const ROWS = 5, PICKS = 6, MIN = 1, MAX = 45;
 
 // 입력 행 6칸 x 5줄 생성
@@ -164,7 +164,8 @@ function makeSet(pool, k) {
     const fromRandom = sample(candidates, PICKS - fromInput.length);
     const inputMark = new Set(fromInput);
     all = [...fromInput, ...fromRandom].sort((a, b) => a - b);
-    if (!pastKeys.has(all.join(','))) {
+    const sum = all.reduce((a, b) => a + b, 0);
+    if (sum > 40 && sum < 220 && !pastKeys.has(all.join(','))) {
       return all.map(n => ({ n, fromInput: inputMark.has(n) }));
     }
   }
