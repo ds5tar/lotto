@@ -89,6 +89,20 @@ for (let r = 0; r < ROWS; r++) {
   inputsEl.appendChild(row);
 }
 
+// 두 자리를 입력하면 다음 칸으로(줄 끝이면 다음 줄 첫 칸), 빈 칸에서 지우기를 누르면 앞 칸으로
+const cells = [...inputsEl.querySelectorAll('input')];
+cells.forEach((inp, i) => {
+  inp.inputMode = 'numeric';
+  inp.addEventListener('input', () => {
+    if (inp.value.length > 2) inp.value = inp.value.slice(0, 2);
+    if (inp.value.length === 2 && cells[i + 1]) cells[i + 1].focus();
+  });
+  inp.addEventListener('focus', () => { try { inp.select(); } catch (e) {} });   // 채워진 칸은 새로 치면 덮어씀
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Backspace' && inp.value === '' && cells[i - 1]) { e.preventDefault(); cells[i - 1].focus(); }
+  });
+});
+
 const percentEl = document.getElementById('percent');
 const restPctEl = document.getElementById('restPct');
 const pickCountEl = document.getElementById('pickCount');
